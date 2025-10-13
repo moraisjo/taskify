@@ -1,5 +1,7 @@
-import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
+
 import '../models/task.dart';
 
 class DatabaseService {
@@ -14,9 +16,9 @@ class DatabaseService {
     return _database!;
   }
 
-  Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+  Future<Database> _initDB(String fileName) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final path = join(directory.path, fileName);
 
     return await openDatabase(
       path,
@@ -82,5 +84,13 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  Future<void> close() async {
+    final db = _database;
+    if (db != null) {
+      await db.close();
+      _database = null;
+    }
   }
 }

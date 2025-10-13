@@ -12,6 +12,8 @@ class TaskListScreen extends StatefulWidget {
 class _TaskListScreenState extends State<TaskListScreen> {
   List<Task> _tasks = [];
   final _titleController = TextEditingController();
+  final List<String> _priorities = const ['low', 'medium', 'high'];
+  String _selectedPriority = 'medium';
 
   @override
   void initState() {
@@ -27,9 +29,13 @@ class _TaskListScreenState extends State<TaskListScreen> {
   Future<void> _addTask() async {
     if (_titleController.text.trim().isEmpty) return;
 
-    final task = Task(title: _titleController.text.trim());
+    final task = Task(
+      title: _titleController.text.trim(),
+      priority: _selectedPriority,
+    );
     await DatabaseService.instance.create(task);
     _titleController.clear();
+    setState(() => _selectedPriority = 'medium');
     _loadTasks();
   }
 
@@ -66,6 +72,20 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _selectedPriority,
+                  items: _priorities
+                      .map((priority) => DropdownMenuItem(
+                            value: priority,
+                            child: Text(priority.toUpperCase()),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _selectedPriority = value);
+                  },
+                ),
+                const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: _addTask,
                   child: const Text('Adicionar'),
@@ -91,6 +111,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                           : null,
                     ),
                   ),
+                  subtitle: Text('Prioridade: ${task.priority.toUpperCase()}'),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete),
                     onPressed: () => _deleteTask(task.id),
