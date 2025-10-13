@@ -11,10 +11,16 @@ class TaskListScreen extends StatefulWidget {
 
 class _TaskListScreenState extends State<TaskListScreen> {
   List<Task> _tasks = [];
+  List<Task> _allTasks = [];
   final _titleController = TextEditingController();
   final List<String> _priorities = const ['low', 'medium', 'high'];
   String _selectedPriority = 'medium';
   TaskFilter _filter = TaskFilter.all;
+
+  int get _totalCount => _allTasks.length;
+  int get _completedCount =>
+      _allTasks.where((task) => task.completed).length;
+  int get _pendingCount => _totalCount - _completedCount;
 
   @override
   void initState() {
@@ -24,7 +30,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   Future<void> _loadTasks() async {
     final tasks = await DatabaseService.instance.readAll();
-    setState(() => _tasks = _applyFilter(tasks));
+    setState(() {
+      _allTasks = tasks;
+      _tasks = _applyFilter(_allTasks);
+    });
   }
 
   Future<void> _addTask() async {
@@ -132,6 +141,13 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   child: Text('Pendentes'),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Total: $_totalCount  •  Completas: $_completedCount  •  Pendentes: $_pendingCount',
             ),
           ),
           const SizedBox(height: 8),
