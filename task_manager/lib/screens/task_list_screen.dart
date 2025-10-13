@@ -14,6 +14,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
   final _titleController = TextEditingController();
   final List<String> _priorities = const ['low', 'medium', 'high'];
   String _selectedPriority = 'medium';
+  TaskFilter _filter = TaskFilter.all;
 
   @override
   void initState() {
@@ -23,7 +24,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   Future<void> _loadTasks() async {
     final tasks = await DatabaseService.instance.readAll();
-    setState(() => _tasks = tasks);
+    setState(() => _tasks = _applyFilter(tasks));
   }
 
   Future<void> _addTask() async {
@@ -48,6 +49,18 @@ class _TaskListScreenState extends State<TaskListScreen> {
   Future<void> _deleteTask(String id) async {
     await DatabaseService.instance.delete(id);
     _loadTasks();
+  }
+
+  List<Task> _applyFilter(List<Task> tasks) {
+    switch (_filter) {
+      case TaskFilter.completed:
+        return tasks.where((task) => task.completed).toList();
+      case TaskFilter.pending:
+        return tasks.where((task) => !task.completed).toList();
+      case TaskFilter.all:
+      default:
+        return tasks;
+    }
   }
 
   @override
@@ -93,6 +106,35 @@ class _TaskListScreenState extends State<TaskListScreen> {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ToggleButtons(
+              isSelected: TaskFilter.values
+                  .map((filter) => filter == _filter)
+                  .toList(),
+              onPressed: (index) {
+                final selected = TaskFilter.values[index];
+                if (selected == _filter) return;
+                setState(() => _filter = selected);
+                _loadTasks();
+              },
+              children: const [
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('Todas'),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('Completas'),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('Pendentes'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           Expanded(
             child: ListView.builder(
               itemCount: _tasks.length,
@@ -125,3 +167,5 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
   }
 }
+
+enum TaskFilter { all, completed, pending }
