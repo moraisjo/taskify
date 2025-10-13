@@ -1,2 +1,2 @@
-# taskify
-A simple Flutter task manager app featuring local data persistence with SQLite. Includes full CRUD operations, task prioritization, and status filtering.
+# Taskify
+This Flutter project is a local task management application built with SQLite for data persistence. It allows users to create, update, complete, and delete tasks while maintaining a clean interface. The app demonstrates fundamental Flutter concepts such as stateful widgets, service layers for database interaction, and model–view separation. Features include task prioritization, filtering by completion status, and a task counter.
