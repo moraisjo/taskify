@@ -1,16 +1,40 @@
-# task_manager
+# Task Manager
 
-A new Flutter project.
+Simple Flutter prototype that stores tasks in SQLite with priority selection, status filtering, and task counters.
 
-## Getting Started
+## Requirements
+- Flutter SDK (>=3.9.0 <4.0.0)
+- Emulator or physical device (Android/iOS/Web/Desktop)
 
-This project is a starting point for a Flutter application.
+## Key Dependencies
+- Flutter framework
+- sqflite 2.3.0
+- path_provider 2.1.1
+- path 1.8.3
+- uuid 4.2.1
+- intl 0.19.0
 
-A few resources to get you started if this is your first Flutter project:
+## Folder Structure
+```text
+task_manager/
+├── lib/
+│   ├── main.dart
+│   ├── models/
+│   │   └── task.dart
+│   ├── screens/
+│   │   └── task_list_screen.dart
+│   └── services/
+│       └── database_service.dart
+├── test/
+│   └── widget_test.dart
+├── pubspec.yaml
+└── README.md
+```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Run Locally
+```bash
+flutter pub get
+flutter run
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Optional housekeeping: `flutter clean` resets build artefacts if you switch targets or hit caching issues.
