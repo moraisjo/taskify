@@ -1,4 +1,4 @@
-# Taskify – Conceptual Guide
+# Taskify
 
 This guide accompanies a lab session where we followed a scripted exercise to build a working Flutter prototype. The practical goals were to configure a Flutter project, model the task entity, wire a SQLite data service, and expose a basic CRUD interface.
 
