@@ -1,6 +1,6 @@
 # Task Manager
 
-Simple Flutter prototype that stores tasks in SQLite with priority selection, status filtering, and task counters.
+This Flutter project is a local task management application built with SQLite for data persistence. It allows users to create, update, complete, and delete tasks while maintaining a clean interface. The app demonstrates fundamental Flutter concepts such as stateful widgets, service layers for database interaction, and model–view separation. Features include task prioritization, filtering by completion status, and a task counter.
 
 ## Requirements
 - Flutter SDK (>=3.9.0 <4.0.0)
