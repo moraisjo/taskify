@@ -14,6 +14,7 @@ class TaskListScreen extends StatefulWidget {
 class _TaskListScreenState extends State<TaskListScreen> {
   List<Task> _tasks = [];
   String _filter = 'all'; // all, completed, pending
+  String _searchQuery = '';
   bool _isLoading = false;
 
   @override
@@ -32,14 +33,28 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   List<Task> get _filteredTasks {
+    var tasks = _tasks;
+
+    // Filtro por status
     switch (_filter) {
       case 'completed':
-        return _tasks.where((t) => t.completed).toList();
+        tasks = tasks.where((t) => t.completed).toList();
+        break;
       case 'pending':
-        return _tasks.where((t) => !t.completed).toList();
-      default:
-        return _tasks;
+        tasks = tasks.where((t) => !t.completed).toList();
+        break;
     }
+
+    // Filtro por busca
+    if (_searchQuery.isNotEmpty) {
+      tasks = tasks
+          .where((t) =>
+              t.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              t.description.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
+    }
+
+    return tasks;
   }
 
   Future<void> _toggleTask(Task task) async {
@@ -129,6 +144,27 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
       body: Column(
         children: [
+          // Barra de Busca
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Buscar tarefas...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => setState(() => _searchQuery = ''),
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onChanged: (value) => setState(() => _searchQuery = value),
+            ),
+          ),
+
           // Card de Estatísticas
           if (_tasks.isNotEmpty)
             Container(
