@@ -1,8 +1,6 @@
-
 import 'dart:io';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../models/task.dart';
@@ -27,11 +25,7 @@ class DatabaseService {
     }
     final directory = await getApplicationDocumentsDirectory();
     final path = join(directory.path, fileName);
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: _createDB,
-    );
+    return await openDatabase(path, version: 1, onCreate: _createDB);
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -55,11 +49,7 @@ class DatabaseService {
 
   Future<Task?> read(String id) async {
     final db = await database;
-    final maps = await db.query(
-      'tasks',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    final maps = await db.query('tasks', where: 'id = ?', whereArgs: [id]);
 
     if (maps.isNotEmpty) {
       return Task.fromMap(maps.first);
@@ -76,21 +66,12 @@ class DatabaseService {
 
   Future<int> update(Task task) async {
     final db = await database;
-    return db.update(
-      'tasks',
-      task.toMap(),
-      where: 'id = ?',
-      whereArgs: [task.id],
-    );
+    return db.update('tasks', task.toMap(), where: 'id = ?', whereArgs: [task.id]);
   }
 
   Future<int> delete(String id) async {
     final db = await database;
-    return await db.delete(
-      'tasks',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> close() async {
