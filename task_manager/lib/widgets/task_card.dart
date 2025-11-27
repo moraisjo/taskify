@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/task.dart';
@@ -8,6 +10,7 @@ class TaskCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
+  final Function(bool?)? onCheckboxChanged;
 
   const TaskCard({
     super.key,
@@ -15,6 +18,7 @@ class TaskCard extends StatelessWidget {
     required this.onTap,
     required this.onToggle,
     required this.onDelete,
+    this.onCheckboxChanged,
   });
 
   Color _getPriorityColor() {
@@ -92,7 +96,7 @@ class TaskCard extends StatelessWidget {
               // Checkbox
               Checkbox(
                 value: task.completed,
-                onChanged: (_) => onToggle(),
+                onChanged: onCheckboxChanged ?? (_) => onToggle(),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
               ),
 
@@ -143,7 +147,8 @@ class TaskCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: priorityColor, width: 1),
+                            color: priorityColor.withOpacity(0.1),
+                            border: Border.all(color: priorityColor.withOpacity(0.5)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -154,13 +159,91 @@ class TaskCard extends StatelessWidget {
                                 _getPriorityLabel(),
                                 style: TextStyle(
                                   fontSize: 12,
+                                  fontWeight: FontWeight.w500,
                                   color: priorityColor,
-                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
                           ),
                         ),
+
+                        // Foto
+                        if (task.hasPhoto)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.blue.withOpacity(0.5)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.photo_camera, size: 14, color: Colors.blue),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Foto',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        // Localização
+                        if (task.hasLocation)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.purple.withOpacity(0.5)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.location_on, size: 14, color: Colors.purple),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Local',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.purple,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        // Shake
+                        if (task.completed && task.wasCompletedByShake)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.green.withOpacity(0.5)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.vibration, size: 14, color: Colors.green),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Shake',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.green,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
                         // Data
                         Icon(Icons.access_time, size: 14, color: subtleTextColor),
@@ -175,7 +258,7 @@ class TaskCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
-                            color: category.color.withValues(alpha: 0.12),
+                            color: category.color.withOpacity(0.12),
                             border: Border.all(color: category.color, width: 1),
                           ),
                           child: Row(
