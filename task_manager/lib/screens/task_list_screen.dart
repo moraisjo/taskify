@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../models/category.dart';
 import '../services/database_service.dart';
+import '../services/sensor_service.dart';
 import '../widgets/task_card.dart';
 import 'task_form_screen.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
@@ -21,12 +22,19 @@ class _TaskListScreenState extends State<TaskListScreen> {
   String _filter = 'all'; // all, completed, pending
   String _searchQuery = '';
   String _categoryFilter = 'all';
-  bool _isLoading = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadTasks();
+    _setupShakeDetection();
+  }
+
+  @override
+  void dispose() {
+    SensorService.instance.stop();
+    super.dispose();
   }
 
   Future<void> _loadTasks() async {
@@ -46,6 +54,106 @@ class _TaskListScreenState extends State<TaskListScreen> {
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _setupShakeDetection() {
+    SensorService.instance.startShakeDetection(() {
+      if (!mounted) return;
+      _showShakeDialog();
+    });
+  }
+
+  void _showShakeDialog() {
+    final pendingTasks = _tasks.where((t) => !t.completed).toList();
+    if (pendingTasks.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('📋 Nenhuma tarefa pendente!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: const [
+            Icon(Icons.vibration, color: Colors.blue),
+            SizedBox(width: 8),
+            Expanded(child: Text('Shake detectado!')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Selecione uma tarefa para completar:'),
+            const SizedBox(height: 16),
+            ...pendingTasks.take(3).map(
+              (task) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  task.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.check_circle, color: Colors.green),
+                  onPressed: () => _completeTaskByShake(task),
+                ),
+              ),
+            ),
+            if (pendingTasks.length > 3)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '+ ${pendingTasks.length - 3} outras',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _completeTaskByShake(Task task) async {
+    try {
+      final updated = task.copyWith(
+        completed: true,
+        completedAt: DateTime.now(),
+        completedBy: 'shake',
+      );
+      await DatabaseService.instance.update(updated);
+      if (mounted) Navigator.pop(context);
+      await _loadTasks();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('"${task.title}" completa via shake!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
