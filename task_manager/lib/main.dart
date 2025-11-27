@@ -5,8 +5,21 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  void _toggleTheme() {
+    setState(() {
+      _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,10 +39,12 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
 
-      // Seguir configuração do sistema
-      themeMode: ThemeMode.system,
+      themeMode: _themeMode,
 
-      home: const TaskListScreen(),
+      home: TaskListScreen(
+        themeMode: _themeMode,
+        onToggleTheme: _toggleTheme,
+      ),
     );
   }
 }

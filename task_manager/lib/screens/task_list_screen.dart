@@ -6,7 +6,14 @@ import 'task_form_screen.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 class TaskListScreen extends StatefulWidget {
-  const TaskListScreen({super.key});
+  final ThemeMode themeMode;
+  final VoidCallback onToggleTheme;
+
+  const TaskListScreen({
+    super.key,
+    required this.themeMode,
+    required this.onToggleTheme,
+  });
 
   @override
   State<TaskListScreen> createState() => _TaskListScreenState();
@@ -143,6 +150,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
   Widget build(BuildContext context) {
     final filteredTasks = _filteredTasks;
     final stats = _calculateStats();
+    final isDark = widget.themeMode == ThemeMode.dark ||
+        (widget.themeMode == ThemeMode.system && Theme.of(context).brightness == Brightness.dark);
 
     return Scaffold(
       appBar: AppBar(
@@ -151,6 +160,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
         foregroundColor: Colors.white,
         elevation: 2,
         actions: [
+          IconButton(
+            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+            tooltip: isDark ? 'Tema claro' : 'Tema escuro',
+            onPressed: widget.onToggleTheme,
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Recarregar',
+            onPressed: _loadTasks,
+          ),
           // Filtro
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
