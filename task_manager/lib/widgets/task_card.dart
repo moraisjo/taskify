@@ -69,6 +69,7 @@ class TaskCard extends StatelessWidget {
         : colorScheme.onSurfaceVariant;
     final subtleTextColor = colorScheme.onSurfaceVariant.withValues(alpha: 0.8);
     final priorityColor = _getPriorityColor();
+    final locationLabel = task.locationName;
     final category = Category.resolve(task.categoryId);
 
     return Card(
@@ -132,34 +133,11 @@ class TaskCard extends StatelessWidget {
                     const SizedBox(height: 8),
 
                     // Metadata Row
-                    Row(
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        // Categoria
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          margin: const EdgeInsets.only(right: 12),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            color: category.color.withValues(alpha: 0.12),
-                            border: Border.all(color: category.color, width: 1),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.label, size: 14, color: category.color),
-                              const SizedBox(width: 4),
-                              Text(
-                                category.name,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: category.color,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
                         // Prioridade
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -184,8 +162,6 @@ class TaskCard extends StatelessWidget {
                           ),
                         ),
 
-                        const SizedBox(width: 12),
-
                         // Data
                         Icon(Icons.access_time, size: 14, color: subtleTextColor),
                         const SizedBox(width: 4),
@@ -193,6 +169,52 @@ class TaskCard extends StatelessWidget {
                           dateFormat.format(task.createdAt),
                           style: TextStyle(fontSize: 12, color: subtleTextColor),
                         ),
+
+                        // Categoria
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: category.color.withValues(alpha: 0.12),
+                            border: Border.all(color: category.color, width: 1),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.label, size: 14, color: category.color),
+                              const SizedBox(width: 4),
+                              Text(
+                                category.name,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: category.color,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        if (task.completed && task.completedAt != null) ...[
+                          const SizedBox(width: 12),
+                          Icon(Icons.check_circle, size: 14, color: Colors.green.shade400),
+                          const SizedBox(width: 4),
+                          Text(
+                            DateFormat('dd/MM/yyyy HH:mm').format(task.completedAt!),
+                            style: TextStyle(fontSize: 12, color: Colors.green.shade400),
+                          ),
+                        ],
+
+                        if (locationLabel != null && locationLabel.isNotEmpty) ...[
+                          const SizedBox(width: 12),
+                          Icon(Icons.location_on, size: 14, color: subtleTextColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            locationLabel,
+                            style: TextStyle(fontSize: 12, color: subtleTextColor),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ],
                     ),
                   ],

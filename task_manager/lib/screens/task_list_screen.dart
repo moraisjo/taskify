@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../models/category.dart';
@@ -12,11 +10,7 @@ class TaskListScreen extends StatefulWidget {
   final ThemeMode themeMode;
   final VoidCallback onToggleTheme;
 
-  const TaskListScreen({
-    super.key,
-    required this.themeMode,
-    required this.onToggleTheme,
-  });
+  const TaskListScreen({super.key, required this.themeMode, required this.onToggleTheme});
 
   @override
   State<TaskListScreen> createState() => _TaskListScreenState();
@@ -80,7 +74,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
           .toList();
     }
 
-    // Filtro por categoria
     if (_categoryFilter != 'all') {
       tasks = tasks.where((t) => t.categoryId == _categoryFilter).toList();
     }
@@ -90,7 +83,12 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   Future<void> _toggleTask(Task task) async {
     try {
-      final updated = task.copyWith(completed: !task.completed);
+      final bool newCompleted = !task.completed;
+      final updated = task.copyWith(
+        completed: newCompleted,
+        completedAt: newCompleted ? DateTime.now() : null,
+        completedBy: newCompleted ? 'manual' : null,
+      );
       // Atualiza lista local para refletir no filtro atual imediatamente
       setState(() {
         _tasks = _tasks.map((t) => t.id == task.id ? updated : t).toList();
@@ -159,14 +157,12 @@ class _TaskListScreenState extends State<TaskListScreen> {
     try {
       final file = await DatabaseService.instance.exportToJson();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Exportado para: ${file.path}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Exportado para: ${file.path}')));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao exportar: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao exportar: $e')));
       }
     }
   }
@@ -176,14 +172,12 @@ class _TaskListScreenState extends State<TaskListScreen> {
       final imported = await DatabaseService.instance.importFromJson();
       if (!mounted) return;
       await _loadTasks();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Importação concluída: $imported itens')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Importação concluída: $imported itens')));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao importar: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao importar: $e')));
       }
     }
   }
@@ -192,7 +186,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
   Widget build(BuildContext context) {
     final filteredTasks = _filteredTasks;
     final stats = _calculateStats();
-    final isDark = widget.themeMode == ThemeMode.dark ||
+    final isDark =
+        widget.themeMode == ThemeMode.dark ||
         (widget.themeMode == ThemeMode.system && Theme.of(context).brightness == Brightness.dark);
     final categories = Category.presets;
 
@@ -208,11 +203,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
             tooltip: isDark ? 'Tema claro' : 'Tema escuro',
             onPressed: widget.onToggleTheme,
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Recarregar',
-            onPressed: _loadTasks,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), tooltip: 'Recarregar', onPressed: _loadTasks),
           IconButton(
             icon: const Icon(Icons.file_download),
             tooltip: 'Exportar JSON',
@@ -270,7 +261,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
             ),
           ),
 
-          // Filtro por Categoria
+          // Filtro por categoria
           if (_tasks.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -290,7 +281,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         child: ChoiceChip(
                           label: Text(cat.name),
                           selected: _categoryFilter == cat.id,
-                          selectedColor: cat.color.withValues(alpha: 0.25),
+                          selectedColor: cat.color.withValues(alpha: 0.2),
                           onSelected: (_) => setState(() => _categoryFilter = cat.id),
                         ),
                       ),
@@ -413,7 +404,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
               const SizedBox(height: 4),
               Text(
                 value,
-                style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
             ],

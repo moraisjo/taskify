@@ -19,46 +19,75 @@ class DatabaseService {
   }
 
   Future<Database> _initDB(String fileName) async {
-    // Detect desktop (Linux, Windows, macOS)
     if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     }
     final directory = await getApplicationDocumentsDirectory();
     final path = join(directory.path, fileName);
-    return await openDatabase(
-      path,
-      version: 2,
-      onCreate: _createDB,
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          await db.execute('ALTER TABLE tasks ADD COLUMN category TEXT');
-        }
-      },
-    );
+    return await openDatabase(path, version: 5, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future<void> _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE tasks (
-        id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
-        description TEXT,
-        completed INTEGER NOT NULL,
+        description TEXT NOT NULL,
         priority TEXT NOT NULL,
+        completed INTEGER NOT NULL,
+        createdAt TEXT NOT NULL,
         category TEXT,
-        createdAt TEXT NOT NULL
-      )
+        photoPath TEXT,
+        completedAt TEXT,
+        completedBy TEXT,
+        latitude REAL,
+        longitude REAL,
+        locationName TEXT
+      );
     ''');
+  }
+
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    // Migração incremental, adicionando colunas se ainda não existirem.
+    if (oldVersion < 3) {
+      try {
+        await db.execute('ALTER TABLE tasks ADD COLUMN photoPath TEXT');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE tasks ADD COLUMN completedAt TEXT');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE tasks ADD COLUMN completedBy TEXT');
+      } catch (_) {}
+    }
+    if (oldVersion < 4) {
+      try {
+        await db.execute('ALTER TABLE tasks ADD COLUMN latitude REAL');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE tasks ADD COLUMN longitude REAL');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE tasks ADD COLUMN locationName TEXT');
+      } catch (_) {}
+    }
+    if (oldVersion < 5) {
+      try {
+        await db.execute('ALTER TABLE tasks ADD COLUMN category TEXT');
+        // Define categoria padrão para existentes
+        await db.execute("UPDATE tasks SET category = 'uncategorized' WHERE category IS NULL");
+      } catch (_) {}
+    }
   }
 
   Future<Task> create(Task task) async {
     final db = await database;
-    await db.insert('tasks', task.toMap());
-    return task;
+    final id = await db.insert('tasks', task.toMap()..remove('id'));
+    return task.copyWith(id: id);
   }
 
-  Future<Task?> read(String id) async {
+  Future<Task?> read(int id) async {
     final db = await database;
     final maps = await db.query('tasks', where: 'id = ?', whereArgs: [id]);
 
@@ -76,11 +105,14 @@ class DatabaseService {
   }
 
   Future<int> update(Task task) async {
+    if (task.id == null) return 0;
     final db = await database;
-    return db.update('tasks', task.toMap(), where: 'id = ?', whereArgs: [task.id]);
+    final map = task.toMap()..remove('id');
+    return db.update('tasks', map, where: 'id = ?', whereArgs: [task.id]);
   }
 
-  Future<int> delete(String id) async {
+  Future<int> delete(int? id) async {
+    if (id == null) return 0;
     final db = await database;
     return await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
   }
@@ -117,8 +149,7 @@ class DatabaseService {
     await db.transaction((txn) async {
       for (final item in tasksList) {
         if (item is! Map) continue;
-        if (!item.containsKey('id') ||
-            !item.containsKey('title') ||
+        if (!item.containsKey('title') ||
             !item.containsKey('completed') ||
             !item.containsKey('priority') ||
             !item.containsKey('createdAt')) {
@@ -129,12 +160,22 @@ class DatabaseService {
             'id': item['id'],
             'title': item['title'],
             'description': item['description'] ?? '',
-            'completed': item['completed'],
             'priority': item['priority'],
-            'category': item['category'],
+            'completed': item['completed'],
             'createdAt': item['createdAt'],
+            'category': item['category'],
+            'photoPath': item['photoPath'],
+            'completedAt': item['completedAt'],
+            'completedBy': item['completedBy'],
+            'latitude': item['latitude']?.toDouble(),
+            'longitude': item['longitude']?.toDouble(),
+            'locationName': item['locationName'],
           });
-          await txn.insert('tasks', task.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+          await txn.insert(
+            'tasks',
+            task.toMap()..remove('id'),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
           imported++;
         } catch (_) {
           // Ignora itens inválidos individuais

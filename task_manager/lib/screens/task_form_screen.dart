@@ -59,6 +59,8 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           priority: _priority,
           categoryId: _categoryId,
           completed: _completed,
+          completedAt: _completed ? DateTime.now() : null,
+          completedBy: _completed ? 'manual' : null,
         );
         await DatabaseService.instance.create(newTask);
 
@@ -79,6 +81,8 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           priority: _priority,
           categoryId: _categoryId,
           completed: _completed,
+          completedAt: _completed ? (widget.task!.completedAt ?? DateTime.now()) : null,
+          completedBy: _completed ? (widget.task!.completedBy ?? 'manual') : null,
         );
         await DatabaseService.instance.update(updatedTask);
 
@@ -152,6 +156,40 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
 
                     const SizedBox(height: 16),
 
+                    // Dropdown de Categoria
+                    DropdownButtonFormField<String>(
+                      value: _categoryId,
+                      decoration: const InputDecoration(
+                        labelText: 'Categoria',
+                        prefixIcon: Icon(Icons.category),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: Category.presets
+                          .map(
+                            (cat) => DropdownMenuItem(
+                              value: cat.id,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration:
+                                        BoxDecoration(color: cat.color, shape: BoxShape.circle),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(cat.name),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) setState(() => _categoryId = value);
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
                     // Campo de Descrição
                     TextFormField(
                       controller: _descriptionController,
@@ -221,44 +259,6 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                       onChanged: (value) {
                         if (value != null) {
                           setState(() => _priority = value);
-                        }
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Dropdown de Categoria
-                    DropdownButtonFormField<String>(
-                      value: _categoryId,
-                      decoration: const InputDecoration(
-                        labelText: 'Categoria',
-                        prefixIcon: Icon(Icons.category),
-                        border: OutlineInputBorder(),
-                      ),
-                      items: Category.presets
-                          .map(
-                            (cat) => DropdownMenuItem(
-                              value: cat.id,
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: cat.color,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(cat.name),
-                                ],
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _categoryId = value);
                         }
                       },
                     ),
