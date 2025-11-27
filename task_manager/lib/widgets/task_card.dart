@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/task.dart';
+import '../models/category.dart';
 
 class TaskCard extends StatelessWidget {
   final Task task;
@@ -68,6 +69,7 @@ class TaskCard extends StatelessWidget {
         : colorScheme.onSurfaceVariant;
     final subtleTextColor = colorScheme.onSurfaceVariant.withValues(alpha: 0.8);
     final priorityColor = _getPriorityColor();
+    final category = Category.resolve(task.categoryId);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -132,6 +134,32 @@ class TaskCard extends StatelessWidget {
                     // Metadata Row
                     Row(
                       children: [
+                        // Categoria
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          margin: const EdgeInsets.only(right: 12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: category.color.withValues(alpha: 0.12),
+                            border: Border.all(color: category.color, width: 1),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.label, size: 14, color: category.color),
+                              const SizedBox(width: 4),
+                              Text(
+                                category.name,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: category.color,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
                         // Prioridade
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

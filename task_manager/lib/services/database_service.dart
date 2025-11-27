@@ -26,7 +26,16 @@ class DatabaseService {
     }
     final directory = await getApplicationDocumentsDirectory();
     final path = join(directory.path, fileName);
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE tasks ADD COLUMN category TEXT');
+        }
+      },
+    );
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -37,6 +46,7 @@ class DatabaseService {
         description TEXT,
         completed INTEGER NOT NULL,
         priority TEXT NOT NULL,
+        category TEXT,
         createdAt TEXT NOT NULL
       )
     ''');
@@ -121,6 +131,7 @@ class DatabaseService {
             'description': item['description'] ?? '',
             'completed': item['completed'],
             'priority': item['priority'],
+            'category': item['category'],
             'createdAt': item['createdAt'],
           });
           await txn.insert('tasks', task.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);

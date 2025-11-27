@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
+import '../models/category.dart';
 import '../services/database_service.dart';
 
 class TaskFormScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   final _descriptionController = TextEditingController();
 
   String _priority = 'medium';
+  String _categoryId = 'uncategorized';
   bool _completed = false;
   bool _isLoading = false;
 
@@ -29,6 +31,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
       _titleController.text = widget.task!.title;
       _descriptionController.text = widget.task!.description;
       _priority = widget.task!.priority;
+      _categoryId = widget.task!.categoryId;
       _completed = widget.task!.completed;
     }
   }
@@ -54,6 +57,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
           priority: _priority,
+          categoryId: _categoryId,
           completed: _completed,
         );
         await DatabaseService.instance.create(newTask);
@@ -73,6 +77,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
           priority: _priority,
+          categoryId: _categoryId,
           completed: _completed,
         );
         await DatabaseService.instance.update(updatedTask);
@@ -216,6 +221,44 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                       onChanged: (value) {
                         if (value != null) {
                           setState(() => _priority = value);
+                        }
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Dropdown de Categoria
+                    DropdownButtonFormField<String>(
+                      value: _categoryId,
+                      decoration: const InputDecoration(
+                        labelText: 'Categoria',
+                        prefixIcon: Icon(Icons.category),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: Category.presets
+                          .map(
+                            (cat) => DropdownMenuItem(
+                              value: cat.id,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: cat.color,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(cat.name),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _categoryId = value);
                         }
                       },
                     ),

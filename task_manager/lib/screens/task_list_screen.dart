@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import '../models/task.dart';
+import '../models/category.dart';
 import '../services/database_service.dart';
 import '../widgets/task_card.dart';
 import 'task_form_screen.dart';
@@ -25,6 +26,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
   List<Task> _tasks = [];
   String _filter = 'all'; // all, completed, pending
   String _searchQuery = '';
+  String _categoryFilter = 'all';
   bool _isLoading = false;
 
   @override
@@ -76,6 +78,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 t.description.toLowerCase().contains(_searchQuery.toLowerCase()),
           )
           .toList();
+    }
+
+    // Filtro por categoria
+    if (_categoryFilter != 'all') {
+      tasks = tasks.where((t) => t.categoryId == _categoryFilter).toList();
     }
 
     return tasks;
@@ -187,6 +194,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
     final stats = _calculateStats();
     final isDark = widget.themeMode == ThemeMode.dark ||
         (widget.themeMode == ThemeMode.system && Theme.of(context).brightness == Brightness.dark);
+    final categories = Category.presets;
 
     return Scaffold(
       appBar: AppBar(
@@ -261,6 +269,36 @@ class _TaskListScreenState extends State<TaskListScreen> {
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
+
+          // Filtro por Categoria
+          if (_tasks.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Todas'),
+                      selected: _categoryFilter == 'all',
+                      onSelected: (_) => setState(() => _categoryFilter = 'all'),
+                    ),
+                    const SizedBox(width: 8),
+                    ...categories.map(
+                      (cat) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(cat.name),
+                          selected: _categoryFilter == cat.id,
+                          selectedColor: cat.color.withValues(alpha: 0.25),
+                          onSelected: (_) => setState(() => _categoryFilter = cat.id),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           // Card de Estatísticas
           if (_tasks.isNotEmpty)
