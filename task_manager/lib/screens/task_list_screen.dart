@@ -3,6 +3,7 @@ import '../models/task.dart';
 import '../services/database_service.dart';
 import '../widgets/task_card.dart';
 import 'task_form_screen.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
@@ -25,11 +26,23 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   Future<void> _loadTasks() async {
     setState(() => _isLoading = true);
-    final tasks = await DatabaseService.instance.readAll();
-    setState(() {
-      _tasks = tasks;
-      _isLoading = false;
-    });
+    try {
+      final tasks = await DatabaseService.instance.readAll();
+      if (!mounted) return;
+      setState(() {
+        _tasks = tasks;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao carregar tarefas: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   List<Task> get _filteredTasks {
@@ -48,9 +61,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
     // Filtro por busca
     if (_searchQuery.isNotEmpty) {
       tasks = tasks
-          .where((t) =>
-              t.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              t.description.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .where(
+            (t) =>
+                t.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                t.description.toLowerCase().contains(_searchQuery.toLowerCase()),
+          )
           .toList();
     }
 
@@ -58,9 +73,21 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   Future<void> _toggleTask(Task task) async {
-    final updated = task.copyWith(completed: !task.completed);
-    await DatabaseService.instance.update(updated);
-    await _loadTasks();
+    try {
+      final updated = task.copyWith(completed: !task.completed);
+      // Atualiza lista local para refletir no filtro atual imediatamente
+      setState(() {
+        _tasks = _tasks.map((t) => t.id == task.id ? updated : t).toList();
+      });
+      await DatabaseService.instance.update(updated);
+      await _loadTasks();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao atualizar tarefa: $e')));
+      }
+    }
   }
 
   Future<void> _deleteTask(Task task) async {
@@ -82,13 +109,21 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
 
     if (confirmed == true) {
-      await DatabaseService.instance.delete(task.id);
-      await _loadTasks();
+      try {
+        await DatabaseService.instance.delete(task.id);
+        await _loadTasks();
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tarefa excluída'), duration: Duration(seconds: 2)),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Tarefa excluída'), duration: Duration(seconds: 2)),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Erro ao excluir tarefa: $e')));
+        }
       }
     }
   }
@@ -157,9 +192,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         onPressed: () => setState(() => _searchQuery = ''),
                       )
                     : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
@@ -182,9 +215,27 @@ class _TaskListScreenState extends State<TaskListScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildStatItem(Icons.list, 'Total', stats['total'].toString()),
-                  _buildStatItem(Icons.pending_actions, 'Pendentes', stats['pending'].toString()),
-                  _buildStatItem(Icons.check_circle, 'Concluídas', stats['completed'].toString()),
+                  _buildStatItem(
+                    icon: Icons.list,
+                    label: 'Total',
+                    value: stats['total'].toString(),
+                    selected: _filter == 'all',
+                    onTap: () => setState(() => _filter = 'all'),
+                  ),
+                  _buildStatItem(
+                    icon: Icons.pending_actions,
+                    label: 'Pendentes',
+                    value: stats['pending'].toString(),
+                    selected: _filter == 'pending',
+                    onTap: () => setState(() => _filter = 'pending'),
+                  ),
+                  _buildStatItem(
+                    icon: Icons.check_circle,
+                    label: 'Concluídas',
+                    value: stats['completed'].toString(),
+                    selected: _filter == 'completed',
+                    onTap: () => setState(() => _filter = 'completed'),
+                  ),
                 ],
               ),
             ),
@@ -197,18 +248,29 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 ? _buildEmptyState()
                 : RefreshIndicator(
                     onRefresh: _loadTasks,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 80),
-                      itemCount: filteredTasks.length,
-                      itemBuilder: (context, index) {
-                        final task = filteredTasks[index];
-                        return TaskCard(
-                          task: task,
-                          onTap: () => _openTaskForm(task),
-                          onToggle: () => _toggleTask(task),
-                          onDelete: () => _deleteTask(task),
-                        );
-                      },
+                    child: AnimationLimiter(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 80),
+                        itemCount: filteredTasks.length,
+                        itemBuilder: (context, index) {
+                          final task = filteredTasks[index];
+                          return AnimationConfiguration.staggeredList(
+                            position: index,
+                            duration: const Duration(milliseconds: 300),
+                            child: SlideAnimation(
+                              verticalOffset: 16,
+                              child: FadeInAnimation(
+                                child: TaskCard(
+                                  task: task,
+                                  onTap: () => _openTaskForm(task),
+                                  onToggle: () => _toggleTask(task),
+                                  onDelete: () => _deleteTask(task),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
           ),
@@ -225,18 +287,37 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
   }
 
-  Widget _buildStatItem(IconData icon, String label, String value) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: Colors.white, size: 32),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+  Widget _buildStatItem({
+    required IconData icon,
+    required String label,
+    required String value,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: selected ? Colors.white.withValues(alpha: 0.08) : Colors.transparent,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: Colors.white, size: 32),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            ],
+          ),
         ),
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-      ],
+      ),
     );
   }
 
