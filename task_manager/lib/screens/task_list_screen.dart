@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../services/database_service.dart';
@@ -146,6 +148,39 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
+  Future<void> _exportTasks() async {
+    try {
+      final file = await DatabaseService.instance.exportToJson();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Exportado para: ${file.path}')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao exportar: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _importTasks() async {
+    try {
+      final imported = await DatabaseService.instance.importFromJson();
+      if (!mounted) return;
+      await _loadTasks();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Importação concluída: $imported itens')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao importar: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final filteredTasks = _filteredTasks;
@@ -169,6 +204,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'Recarregar',
             onPressed: _loadTasks,
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_download),
+            tooltip: 'Exportar JSON',
+            onPressed: _exportTasks,
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_upload),
+            tooltip: 'Importar JSON',
+            onPressed: _importTasks,
           ),
           // Filtro
           PopupMenuButton<String>(

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -72,6 +73,65 @@ class DatabaseService {
   Future<int> delete(String id) async {
     final db = await database;
     return await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<File> _exportFile() async {
+    final directory = await getApplicationDocumentsDirectory();
+    return File(join(directory.path, 'tasks_export.json'));
+  }
+
+  Future<File> exportToJson() async {
+    final tasks = await readAll();
+    final file = await _exportFile();
+    final json = jsonEncode({'tasks': tasks.map((t) => t.toMap()).toList()});
+    await file.writeAsString(json);
+    return file;
+  }
+
+  Future<int> importFromJson({File? file}) async {
+    final targetFile = file ?? await _exportFile();
+    if (!await targetFile.exists()) {
+      throw Exception('Arquivo não encontrado: ${targetFile.path}');
+    }
+
+    final content = await targetFile.readAsString();
+    final decoded = jsonDecode(content);
+    if (decoded is! Map || decoded['tasks'] is! List) {
+      throw Exception('Formato inválido: objeto "tasks" não encontrado');
+    }
+
+    final List tasksList = decoded['tasks'];
+    final db = await database;
+    int imported = 0;
+
+    await db.transaction((txn) async {
+      for (final item in tasksList) {
+        if (item is! Map) continue;
+        if (!item.containsKey('id') ||
+            !item.containsKey('title') ||
+            !item.containsKey('completed') ||
+            !item.containsKey('priority') ||
+            !item.containsKey('createdAt')) {
+          continue;
+        }
+        try {
+          final task = Task.fromMap({
+            'id': item['id'],
+            'title': item['title'],
+            'description': item['description'] ?? '',
+            'completed': item['completed'],
+            'priority': item['priority'],
+            'createdAt': item['createdAt'],
+          });
+          await txn.insert('tasks', task.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+          imported++;
+        } catch (_) {
+          // Ignora itens inválidos individuais
+        }
+      }
+    });
+
+    return imported;
   }
 
   Future<void> close() async {
