@@ -4,6 +4,7 @@ import '../models/category.dart';
 import '../services/database_service.dart';
 import '../services/sensor_service.dart';
 import '../services/connectivity_service.dart';
+import '../services/sync_service.dart';
 import '../widgets/task_card.dart';
 import 'task_form_screen.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
@@ -33,8 +34,12 @@ class _TaskListScreenState extends State<TaskListScreen> {
       ConnectivityService.instance.onlineStream.listen((online) {
         if (!mounted) return;
         setState(() => _isOnline = online);
+        if (online) {
+          SyncService.instance.sync();
+        }
       });
     });
+    SyncService.instance.initialize();
     _loadTasks();
     _setupShakeDetection();
   }
@@ -77,10 +82,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
     final pendingTasks = _tasks.where((t) => !t.completed).toList();
     if (pendingTasks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('📋 Nenhuma tarefa pendente!'),
-          backgroundColor: Colors.green,
-        ),
+        const SnackBar(content: Text('📋 Nenhuma tarefa pendente!'), backgroundColor: Colors.green),
       );
       return;
     }
@@ -101,20 +103,18 @@ class _TaskListScreenState extends State<TaskListScreen> {
           children: [
             const Text('Selecione uma tarefa para completar:'),
             const SizedBox(height: 16),
-            ...pendingTasks.take(3).map(
-              (task) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  task.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+            ...pendingTasks
+                .take(3)
+                .map(
+                  (task) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(task.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.check_circle, color: Colors.green),
+                      onPressed: () => _completeTaskByShake(task),
+                    ),
+                  ),
                 ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.check_circle, color: Colors.green),
-                  onPressed: () => _completeTaskByShake(task),
-                ),
-              ),
-            ),
             if (pendingTasks.length > 3)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -126,10 +126,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
         ],
       ),
     );
@@ -156,12 +153,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
       }
     }
   }
@@ -318,10 +312,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
             children: [
               Icon(_isOnline ? Icons.wifi : Icons.cloud_off, color: Colors.white),
               const SizedBox(width: 4),
-              Text(
-                _isOnline ? 'Online' : 'Offline',
-                style: const TextStyle(color: Colors.white),
-              ),
+              Text(_isOnline ? 'Online' : 'Offline', style: const TextStyle(color: Colors.white)),
               const SizedBox(width: 12),
             ],
           ),

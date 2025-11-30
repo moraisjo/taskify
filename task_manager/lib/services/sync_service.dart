@@ -50,9 +50,27 @@ class SyncService {
       final task = Task.fromMap(payload);
       try {
         if (op == 'CREATE') {
-          await _pushCreate(task);
+          final pushed = await _pushCreate(task);
+          if (pushed != null && pushed.id != null) {
+            await DatabaseService.instance.update(
+              pushed.copyWith(syncStatus: 'synced', id: pushed.id),
+            );
+          } else {
+            await DatabaseService.instance.update(
+              task.copyWith(syncStatus: 'synced'),
+            );
+          }
         } else if (op == 'UPDATE') {
-          await _pushUpdate(task);
+          final pushed = await _pushUpdate(task);
+          if (pushed != null && pushed.id != null) {
+            await DatabaseService.instance.update(
+              pushed.copyWith(syncStatus: 'synced', id: pushed.id),
+            );
+          } else {
+            await DatabaseService.instance.update(
+              task.copyWith(syncStatus: 'synced'),
+            );
+          }
         } else if (op == 'DELETE') {
           await _pushDelete(task);
         }
@@ -147,7 +165,7 @@ class SyncService {
     };
   }
 
-  Future<void> _pushCreate(Task task) async {
+  Future<Task?> _pushCreate(Task task) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}/tasks');
     final response = await http.post(
       uri,
@@ -155,13 +173,19 @@ class SyncService {
       body: jsonEncode(_taskToPayload(task)),
     );
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      // ok
+      try {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        final serverTask = _taskFromServer(body['task'] as Map? ?? {});
+        return serverTask ?? task;
+      } catch (_) {
+        return task;
+      }
     } else {
       throw Exception('Erro ao criar no servidor: ${response.statusCode}');
     }
   }
 
-  Future<void> _pushUpdate(Task task) async {
+  Future<Task?> _pushUpdate(Task task) async {
     final id = task.id ?? '';
     final uri = Uri.parse('${ApiConfig.baseUrl}/tasks/$id');
     final response = await http.put(
@@ -173,7 +197,13 @@ class SyncService {
       throw Exception('CONFLICT');
     }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      // ok
+      try {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        final serverTask = _taskFromServer(body['task'] as Map? ?? {});
+        return serverTask ?? task;
+      } catch (_) {
+        return task;
+      }
     } else {
       throw Exception('Erro ao atualizar no servidor: ${response.statusCode}');
     }
