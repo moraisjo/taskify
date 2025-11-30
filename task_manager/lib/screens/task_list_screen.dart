@@ -3,6 +3,7 @@ import '../models/task.dart';
 import '../models/category.dart';
 import '../services/database_service.dart';
 import '../services/sensor_service.dart';
+import '../services/connectivity_service.dart';
 import '../widgets/task_card.dart';
 import 'task_form_screen.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
@@ -23,10 +24,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
   String _searchQuery = '';
   String _categoryFilter = 'all';
   bool _isLoading = true;
+  bool _isOnline = true;
 
   @override
   void initState() {
     super.initState();
+    ConnectivityService.instance.initialize().then((_) {
+      ConnectivityService.instance.onlineStream.listen((online) {
+        if (!mounted) return;
+        setState(() => _isOnline = online);
+      });
+    });
     _loadTasks();
     _setupShakeDetection();
   }
@@ -306,6 +314,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
         foregroundColor: Colors.white,
         elevation: 2,
         actions: [
+          Row(
+            children: [
+              Icon(_isOnline ? Icons.wifi : Icons.cloud_off, color: Colors.white),
+              const SizedBox(width: 4),
+              Text(
+                _isOnline ? 'Online' : 'Offline',
+                style: const TextStyle(color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+            ],
+          ),
           IconButton(
             icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
             tooltip: isDark ? 'Tema claro' : 'Tema escuro',

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite/sqlite_api.dart';
 
 import '../models/task.dart';
 
@@ -25,7 +26,7 @@ class DatabaseService {
     }
     final directory = await getApplicationDocumentsDirectory();
     final path = join(directory.path, fileName);
-    return await openDatabase(path, version: 5, onCreate: _createDB, onUpgrade: _upgradeDB);
+    return await openDatabase(path, version: 6, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -37,6 +38,9 @@ class DatabaseService {
         priority TEXT NOT NULL,
         completed INTEGER NOT NULL,
         createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        version INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL,
         category TEXT,
         photoPath TEXT,
         completedAt TEXT,
@@ -44,6 +48,15 @@ class DatabaseService {
         latitude REAL,
         longitude REAL,
         locationName TEXT
+      );
+
+      CREATE TABLE sync_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        taskId INTEGER,
+        operation TEXT NOT NULL,
+        payload TEXT,
+        status TEXT NOT NULL,
+        createdAt TEXT NOT NULL
       );
     ''');
   }
@@ -79,12 +92,49 @@ class DatabaseService {
         await db.execute("UPDATE tasks SET category = 'uncategorized' WHERE category IS NULL");
       } catch (_) {}
     }
+    if (oldVersion < 6) {
+      try {
+        await db.execute("ALTER TABLE tasks ADD COLUMN updatedAt TEXT");
+      } catch (_) {}
+      try {
+        await db.execute("ALTER TABLE tasks ADD COLUMN version INTEGER");
+      } catch (_) {}
+      try {
+        await db.execute("ALTER TABLE tasks ADD COLUMN syncStatus TEXT");
+      } catch (_) {}
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS sync_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            taskId INTEGER,
+            operation TEXT NOT NULL,
+            payload TEXT,
+            status TEXT NOT NULL,
+            createdAt TEXT NOT NULL
+          );
+        ''');
+      } catch (_) {}
+      try {
+        await db.execute("UPDATE tasks SET updatedAt = createdAt WHERE updatedAt IS NULL");
+        await db.execute("UPDATE tasks SET version = 1 WHERE version IS NULL");
+        await db.execute("UPDATE tasks SET syncStatus = 'synced' WHERE syncStatus IS NULL");
+      } catch (_) {}
+    }
   }
 
   Future<Task> create(Task task) async {
     final db = await database;
-    final id = await db.insert('tasks', task.toMap()..remove('id'));
-    return task.copyWith(id: id);
+    final now = DateTime.now();
+    final map = task
+        .copyWith(
+          updatedAt: now,
+          version: task.version,
+          syncStatus: task.syncStatus,
+        )
+        .toMap()
+      ..remove('id');
+    final id = await db.insert('tasks', map);
+    return task.copyWith(id: id, updatedAt: now);
   }
 
   Future<Task?> read(int id) async {
@@ -99,7 +149,7 @@ class DatabaseService {
 
   Future<List<Task>> readAll() async {
     final db = await database;
-    const orderBy = 'createdAt DESC';
+    const orderBy = 'updatedAt DESC';
     final result = await db.query('tasks', orderBy: orderBy);
     return result.map((map) => Task.fromMap(map)).toList();
   }
@@ -107,7 +157,11 @@ class DatabaseService {
   Future<int> update(Task task) async {
     if (task.id == null) return 0;
     final db = await database;
-    final map = task.toMap()..remove('id');
+    final updated = task.copyWith(
+      updatedAt: DateTime.now(),
+      version: task.version + 1,
+    );
+    final map = updated.toMap()..remove('id');
     return db.update('tasks', map, where: 'id = ?', whereArgs: [task.id]);
   }
 
@@ -115,6 +169,38 @@ class DatabaseService {
     if (id == null) return 0;
     final db = await database;
     return await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ===================== Fila de sincronização =====================
+
+  Future<int> addToSyncQueue({
+    required String operation, // CREATE, UPDATE, DELETE
+    required Task task,
+  }) async {
+    final db = await database;
+    final payload = jsonEncode(task.toMap());
+    return db.insert('sync_queue', {
+      'taskId': task.id,
+      'operation': operation,
+      'payload': payload,
+      'status': 'pending',
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingQueue() async {
+    final db = await database;
+    return db.query('sync_queue', where: 'status = ?', whereArgs: ['pending'], orderBy: 'createdAt ASC');
+  }
+
+  Future<int> markQueueItemStatus(int id, String status) async {
+    final db = await database;
+    return db.update('sync_queue', {'status': status}, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> removeFromSyncQueue(int id) async {
+    final db = await database;
+    return db.delete('sync_queue', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<File> _exportFile() async {

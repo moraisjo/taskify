@@ -5,6 +5,9 @@ class Task {
   final String priority;
   final bool completed;
   final DateTime createdAt;
+  final DateTime updatedAt;
+  final int version;
+  final String syncStatus;
   final String categoryId;
   final String? photoPath;
   final DateTime? completedAt;
@@ -21,13 +24,17 @@ class Task {
     this.completed = false,
     this.categoryId = 'uncategorized',
     DateTime? createdAt,
+    DateTime? updatedAt,
+    this.version = 1,
+    this.syncStatus = 'synced', // synced | pending | failed
     this.photoPath,
     this.completedAt,
     this.completedBy,
     this.latitude,
     this.longitude,
     this.locationName,
-  }) : createdAt = createdAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
 
   bool get hasPhoto => photoPath != null && photoPath!.isNotEmpty;
   bool get hasLocation => latitude != null && longitude != null;
@@ -41,6 +48,9 @@ class Task {
       'priority': priority,
       'completed': completed ? 1 : 0,
       'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      'version': version,
+      'syncStatus': syncStatus,
       'category': categoryId,
       'photoPath': photoPath,
       'completedAt': completedAt?.toIso8601String(),
@@ -59,6 +69,9 @@ class Task {
       priority: (map['priority'] as String?) ?? 'medium',
       completed: (map['completed'] as int? ?? 0) == 1,
       createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(map['updatedAt'] as String? ?? '') ?? DateTime.now(),
+      version: (map['version'] as num?)?.toInt() ?? 1,
+      syncStatus: (map['syncStatus'] as String?) ?? 'synced',
       categoryId: (map['category'] as String?)?.isNotEmpty == true ? map['category'] as String : 'uncategorized',
       photoPath: map['photoPath'] as String?,
       completedAt: map['completedAt'] != null
@@ -78,6 +91,9 @@ class Task {
     String? priority,
     bool? completed,
     DateTime? createdAt,
+    DateTime? updatedAt,
+    int? version,
+    String? syncStatus,
     String? categoryId,
     String? photoPath,
     DateTime? completedAt,
@@ -93,6 +109,9 @@ class Task {
       priority: priority ?? this.priority,
       completed: completed ?? this.completed,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      version: version ?? this.version,
+      syncStatus: syncStatus ?? this.syncStatus,
       categoryId: categoryId ?? this.categoryId,
       photoPath: photoPath ?? this.photoPath,
       completedAt: completedAt ?? this.completedAt,

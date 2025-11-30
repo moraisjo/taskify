@@ -75,6 +75,7 @@ class TaskCard extends StatelessWidget {
     final priorityColor = _getPriorityColor();
     final locationLabel = task.locationName;
     final category = Category.resolve(task.categoryId);
+    final isPending = task.syncStatus != 'synced';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -107,6 +108,23 @@ class TaskCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Indicador de sync pendente
+                    if (isPending)
+                      Row(
+                        children: [
+                          Icon(Icons.cloud_off, size: 16, color: Colors.orange.shade600),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Pendente',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.orange.shade600,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (isPending) const SizedBox(height: 6),
                     // Título
                     Text(
                       task.title,
