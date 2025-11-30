@@ -30,16 +30,12 @@ class _TaskListScreenState extends State<TaskListScreen> {
   @override
   void initState() {
     super.initState();
-    ConnectivityService.instance.initialize().then((_) {
-      ConnectivityService.instance.onlineStream.listen((online) {
-        if (!mounted) return;
-        setState(() => _isOnline = online);
-        if (online) {
-          SyncService.instance.sync();
-        }
-      });
-    });
+    // Inicializa sync (ele mesmo escuta conectividade) e apenas assinamos o stream para UI
     SyncService.instance.initialize();
+    ConnectivityService.instance.onlineStream.listen((online) {
+      if (!mounted) return;
+      setState(() => _isOnline = online);
+    });
     _loadTasks();
     _setupShakeDetection();
   }
@@ -198,12 +194,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
         completed: newCompleted,
         completedAt: newCompleted ? DateTime.now() : null,
         completedBy: newCompleted ? 'manual' : null,
+        syncStatus: 'pending',
       );
       // Atualiza lista local para refletir no filtro atual imediatamente
       setState(() {
         _tasks = _tasks.map((t) => t.id == task.id ? updated : t).toList();
       });
       await DatabaseService.instance.update(updated);
+      await DatabaseService.instance.addToSyncQueue(operation: 'UPDATE', task: updated);
       await _loadTasks();
     } catch (e) {
       if (mounted) {
@@ -234,6 +232,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
     if (confirmed == true) {
       try {
+        // Enfileira delete antes da remoção local
+        final payloadTask = task.copyWith(syncStatus: 'pending');
+        await DatabaseService.instance.addToSyncQueue(operation: 'DELETE', task: payloadTask);
+
+        // Remove local imediatamente
         await DatabaseService.instance.delete(task.id);
         await _loadTasks();
 

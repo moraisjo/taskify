@@ -79,7 +79,11 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           longitude: _longitude,
           locationName: _locationName,
         );
-        await DatabaseService.instance.create(newTask);
+        // Persistência local com status pendente e enfileiramento para sync
+        final created = await DatabaseService.instance.create(
+          newTask.copyWith(syncStatus: 'pending'),
+        );
+        await DatabaseService.instance.addToSyncQueue(operation: 'CREATE', task: created);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -105,7 +109,10 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           longitude: _longitude,
           locationName: _locationName,
         );
-        await DatabaseService.instance.update(updatedTask);
+        // Atualização local com status pendente e enfileiramento para sync
+        final pendingUpdate = updatedTask.copyWith(syncStatus: 'pending');
+        await DatabaseService.instance.update(pendingUpdate);
+        await DatabaseService.instance.addToSyncQueue(operation: 'UPDATE', task: pendingUpdate);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

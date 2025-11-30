@@ -80,6 +80,14 @@ app.post('/api/tasks', (req, res) => {
       return res.status(400).json({ success: false, message: 'Título é obrigatório' });
     }
 
+    console.log(`[API] CREATE /api/tasks`, {
+      id,
+      title,
+      priority,
+      userId: userId || 'user1',
+      createdAt,
+    });
+
     const task = storage.createTask({
       id,
       title: title.trim(),
@@ -89,6 +97,7 @@ app.post('/api/tasks', (req, res) => {
       createdAt,
     });
 
+    console.log(`[API] CREATE OK`, { id: task.id, version: task.version });
     res.status(201).json({ success: true, message: 'Tarefa criada com sucesso', task });
   } catch (error) {
     console.error('Erro ao criar tarefa:', error);
@@ -100,6 +109,12 @@ app.post('/api/tasks', (req, res) => {
 app.put('/api/tasks/:id', (req, res) => {
   try {
     const { title, description, completed, priority, version } = req.body;
+    console.log(`[API] UPDATE /api/tasks/${req.params.id}`, {
+      title,
+      completed,
+      priority,
+      version,
+    });
 
     const result = storage.updateTask(
       req.params.id,
@@ -109,9 +124,11 @@ app.put('/api/tasks/:id', (req, res) => {
 
     if (!result.success) {
       if (result.error === 'NOT_FOUND') {
+        console.warn(`[API] UPDATE NOT_FOUND`, { id: req.params.id });
         return res.status(404).json({ success: false, message: 'Tarefa não encontrada' });
       }
       if (result.error === 'CONFLICT') {
+        console.warn(`[API] UPDATE CONFLICT`, { id: req.params.id, serverVersion: result.serverTask?.version });
         return res.status(409).json({
           success: false,
           message: 'Conflito detectado',
@@ -121,6 +138,7 @@ app.put('/api/tasks/:id', (req, res) => {
       }
     }
 
+    console.log(`[API] UPDATE OK`, { id: result.task.id, version: result.task.version });
     res.json({ success: true, message: 'Tarefa atualizada com sucesso', task: result.task });
   } catch (error) {
     console.error('Erro ao atualizar tarefa:', error);
@@ -132,13 +150,16 @@ app.put('/api/tasks/:id', (req, res) => {
 app.delete('/api/tasks/:id', (req, res) => {
   try {
     const version = req.query.version ? parseInt(req.query.version, 10) : null;
+    console.log(`[API] DELETE /api/tasks/${req.params.id}`, { version });
     const result = storage.deleteTask(req.params.id, version);
 
     if (!result.success) {
       if (result.error === 'NOT_FOUND') {
+        console.warn(`[API] DELETE NOT_FOUND`, { id: req.params.id });
         return res.status(404).json({ success: false, message: 'Tarefa não encontrada' });
       }
       if (result.error === 'CONFLICT') {
+        console.warn(`[API] DELETE CONFLICT`, { id: req.params.id, serverVersion: result.serverTask?.version });
         return res.status(409).json({
           success: false,
           message: 'Conflito detectado',
@@ -148,6 +169,7 @@ app.delete('/api/tasks/:id', (req, res) => {
       }
     }
 
+    console.log(`[API] DELETE OK`, { id: req.params.id });
     res.json({ success: true, message: 'Tarefa deletada com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar tarefa:', error);
@@ -159,6 +181,7 @@ app.delete('/api/tasks/:id', (req, res) => {
 app.post('/api/sync/batch', (req, res) => {
   try {
     const { operations } = req.body;
+    console.log(`[API] BATCH /api/sync/batch`, { count: (operations || []).length });
     const results = [];
 
     for (const op of operations || []) {
@@ -179,6 +202,7 @@ app.post('/api/sync/batch', (req, res) => {
       results.push(result);
     }
 
+    console.log(`[API] BATCH OK`, { resultsCount: results.length });
     res.json({ success: true, results, serverTime: Date.now() });
   } catch (error) {
     console.error('Erro na sincronização em lote:', error);
