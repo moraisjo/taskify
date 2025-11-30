@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../models/category.dart';
 import '../services/database_service.dart';
+import '../services/connectivity_service.dart';
+import '../services/sync_service.dart';
 import '../services/camera_service.dart';
 import '../services/location_service.dart';
 import '../widgets/location_picker.dart';
@@ -84,6 +86,10 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           newTask.copyWith(syncStatus: 'pending'),
         );
         await DatabaseService.instance.addToSyncQueue(operation: 'CREATE', task: created);
+        // Dispara sync imediato se online
+        if (ConnectivityService.instance.isOnline) {
+          await SyncService.instance.sync();
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -113,6 +119,9 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
         final pendingUpdate = updatedTask.copyWith(syncStatus: 'pending');
         await DatabaseService.instance.update(pendingUpdate);
         await DatabaseService.instance.addToSyncQueue(operation: 'UPDATE', task: pendingUpdate);
+        if (ConnectivityService.instance.isOnline) {
+          await SyncService.instance.sync();
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

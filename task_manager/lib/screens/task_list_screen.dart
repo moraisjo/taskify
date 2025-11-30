@@ -202,6 +202,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
       });
       await DatabaseService.instance.update(updated);
       await DatabaseService.instance.addToSyncQueue(operation: 'UPDATE', task: updated);
+      if (ConnectivityService.instance.isOnline) {
+        await SyncService.instance.sync();
+      }
       await _loadTasks();
     } catch (e) {
       if (mounted) {
@@ -235,6 +238,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
         // Enfileira delete antes da remoção local
         final payloadTask = task.copyWith(syncStatus: 'pending');
         await DatabaseService.instance.addToSyncQueue(operation: 'DELETE', task: payloadTask);
+        if (ConnectivityService.instance.isOnline) {
+          await SyncService.instance.sync();
+        }
 
         // Remove local imediatamente
         await DatabaseService.instance.delete(task.id);
