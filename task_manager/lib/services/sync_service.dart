@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -17,6 +18,9 @@ class SyncService {
 
   bool _isSyncing = false;
   Stream<bool>? _connectivityStream;
+  final StreamController<bool> _syncCompletionController = StreamController<bool>.broadcast();
+
+  Stream<bool> get onSyncComplete => _syncCompletionController.stream;
 
   Future<void> initialize() async {
     _log('SyncService init usando baseUrl=${ApiConfig.baseUrl}');
@@ -33,12 +37,17 @@ class SyncService {
   Future<void> sync() async {
     if (_isSyncing || !ConnectivityService.instance.isOnline) return;
     _isSyncing = true;
+    var success = true;
     try {
       _log('Iniciando sync');
       await _pushPending();
       await _pullUpdates();
+    } catch (_) {
+      success = false;
+      rethrow;
     } finally {
       _isSyncing = false;
+      _syncCompletionController.add(success);
     }
   }
 

@@ -26,7 +26,17 @@ class DatabaseService {
     }
     final directory = await getApplicationDocumentsDirectory();
     final path = join(directory.path, fileName);
-    return await openDatabase(path, version: 6, onCreate: _createDB, onUpgrade: _upgradeDB);
+    return await openDatabase(
+      path,
+      version: 6,
+      onCreate: _createDB,
+      onUpgrade: _upgradeDB,
+      onConfigure: (db) async {
+        // Aumenta tolerância a locks em desktop e habilita WAL para melhor concorrência.
+        await db.execute('PRAGMA busy_timeout = 5000');
+        await db.execute('PRAGMA journal_mode = WAL');
+      },
+    );
   }
 
   Future<void> _createDB(Database db, int version) async {

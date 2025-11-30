@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../models/category.dart';
@@ -26,15 +28,21 @@ class _TaskListScreenState extends State<TaskListScreen> {
   String _categoryFilter = 'all';
   bool _isLoading = true;
   bool _isOnline = true;
+  StreamSubscription<bool>? _connectivitySubscription;
+  StreamSubscription<bool>? _syncSubscription;
 
   @override
   void initState() {
     super.initState();
     // Inicializa sync (ele mesmo escuta conectividade) e apenas assinamos o stream para UI
     SyncService.instance.initialize();
-    ConnectivityService.instance.onlineStream.listen((online) {
+    _connectivitySubscription = ConnectivityService.instance.onlineStream.listen((online) {
       if (!mounted) return;
       setState(() => _isOnline = online);
+    });
+    _syncSubscription = SyncService.instance.onSyncComplete.listen((_) {
+      if (!mounted) return;
+      _loadTasks();
     });
     _loadTasks();
     _setupShakeDetection();
@@ -43,6 +51,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
   @override
   void dispose() {
     SensorService.instance.stop();
+    _connectivitySubscription?.cancel();
+    _syncSubscription?.cancel();
     super.dispose();
   }
 
@@ -309,6 +319,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
         widget.themeMode == ThemeMode.dark ||
         (widget.themeMode == ThemeMode.system && Theme.of(context).brightness == Brightness.dark);
     final categories = Category.presets;
+    final statusColor = _isOnline ? Colors.green : Colors.orange;
+    final statusText = _isOnline ? 'Online' : 'Offline';
+    final statusIcon = _isOnline ? Icons.cloud_done : Icons.cloud_off;
 
     return Scaffold(
       appBar: AppBar(
@@ -317,13 +330,29 @@ class _TaskListScreenState extends State<TaskListScreen> {
         foregroundColor: Colors.white,
         elevation: 2,
         actions: [
-          Row(
-            children: [
-              Icon(_isOnline ? Icons.wifi : Icons.cloud_off, color: Colors.white),
-              const SizedBox(width: 4),
-              Text(_isOnline ? 'Online' : 'Offline', style: const TextStyle(color: Colors.white)),
-              const SizedBox(width: 12),
-            ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: statusColor),
+              ),
+              child: Row(
+                children: [
+                  Icon(statusIcon, color: statusColor, size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    statusText,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           IconButton(
             icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
