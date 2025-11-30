@@ -51,26 +51,10 @@ class SyncService {
       try {
         if (op == 'CREATE') {
           final pushed = await _pushCreate(task);
-          if (pushed != null && pushed.id != null) {
-            await DatabaseService.instance.update(
-              pushed.copyWith(syncStatus: 'synced', id: pushed.id),
-            );
-          } else {
-            await DatabaseService.instance.update(
-              task.copyWith(syncStatus: 'synced'),
-            );
-          }
+          await _markSynced(pushed ?? task);
         } else if (op == 'UPDATE') {
           final pushed = await _pushUpdate(task);
-          if (pushed != null && pushed.id != null) {
-            await DatabaseService.instance.update(
-              pushed.copyWith(syncStatus: 'synced', id: pushed.id),
-            );
-          } else {
-            await DatabaseService.instance.update(
-              task.copyWith(syncStatus: 'synced'),
-            );
-          }
+          await _markSynced(pushed ?? task);
         } else if (op == 'DELETE') {
           await _pushDelete(task);
         }
@@ -194,6 +178,33 @@ class SyncService {
       body: jsonEncode(_taskToPayload(task)),
     );
     if (response.statusCode == 409) {
+      // Conflito: aplicar LWW
+      try {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        final serverTask = _taskFromServer(body['serverTask'] as Map? ?? {});
+        if (serverTask != null) {
+          final serverTime = serverTask.updatedAt.millisecondsSinceEpoch;
+          final localTime = task.updatedAt.millisecondsSinceEpoch;
+          if (localTime > serverTime || task.version > serverTask.version) {
+            // Local vence: reenviar usando versão do servidor
+            final payload = _taskToPayload(task.copyWith(version: serverTask.version));
+            final retry = await http.put(
+              uri,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode(payload),
+            );
+            if (retry.statusCode >= 200 && retry.statusCode < 300) {
+              return task.copyWith(version: serverTask.version + 1);
+            }
+          } else {
+            // Servidor vence: atualizar local
+            await _markSynced(serverTask);
+            return serverTask;
+          }
+        }
+      } catch (_) {
+        // cai no erro abaixo
+      }
       throw Exception('CONFLICT');
     }
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -241,5 +252,11 @@ class SyncService {
       final file = File(p.join(dir.path, 'last_sync.txt'));
       await file.writeAsString('$timestamp');
     } catch (_) {}
+  }
+
+  Future<void> _markSynced(Task task) async {
+    await DatabaseService.instance.update(
+      task.copyWith(syncStatus: 'synced'),
+    );
   }
 }
