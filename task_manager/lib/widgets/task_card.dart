@@ -76,6 +76,9 @@ class TaskCard extends StatelessWidget {
     final locationLabel = task.locationName;
     final category = Category.resolve(task.categoryId);
     final isPending = task.syncStatus != 'synced';
+    final syncIcon = isPending ? Icons.cloud_off : Icons.cloud_done;
+    final syncColor = isPending ? Colors.orange.shade600 : Colors.green.shade600;
+    final syncLabel = isPending ? 'Pendente' : 'Sincronizado';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -109,22 +112,21 @@ class TaskCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Indicador de sync pendente
-                    if (isPending)
-                      Row(
-                        children: [
-                          Icon(Icons.cloud_off, size: 16, color: Colors.orange.shade600),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Pendente',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.orange.shade600,
-                              fontWeight: FontWeight.w600,
-                            ),
+                    Row(
+                      children: [
+                        Icon(syncIcon, size: 16, color: syncColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          syncLabel,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: syncColor,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ],
-                      ),
-                    if (isPending) const SizedBox(height: 6),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
                     // Título
                     Text(
                       task.title,

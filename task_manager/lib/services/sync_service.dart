@@ -19,6 +19,7 @@ class SyncService {
   Stream<bool>? _connectivityStream;
 
   Future<void> initialize() async {
+    _log('SyncService init usando baseUrl=${ApiConfig.baseUrl}');
     // Inicia monitor de conectividade
     await ConnectivityService.instance.initialize();
     _connectivityStream ??= ConnectivityService.instance.onlineStream;
@@ -33,6 +34,7 @@ class SyncService {
     if (_isSyncing || !ConnectivityService.instance.isOnline) return;
     _isSyncing = true;
     try {
+      _log('Iniciando sync');
       await _pushPending();
       await _pullUpdates();
     } finally {
@@ -42,6 +44,7 @@ class SyncService {
 
   Future<void> _pushPending() async {
     final queue = await DatabaseService.instance.getPendingQueue();
+    _log('Processando fila de sync (${queue.length} itens)');
     for (final item in queue) {
       final op = item['operation'] as String?;
       final payloadStr = item['payload'] as String?;
@@ -61,6 +64,7 @@ class SyncService {
         await DatabaseService.instance.markQueueItemStatus(item['id'] as int, 'done');
         await DatabaseService.instance.removeFromSyncQueue(item['id'] as int);
       } catch (_) {
+        _log('Erro ao processar item $op');
         await DatabaseService.instance.markQueueItemStatus(item['id'] as int, 'failed');
       }
     }
@@ -69,6 +73,7 @@ class SyncService {
   Future<void> _pullUpdates() async {
     final lastSync = await _readLastSyncTimestamp();
     final uri = Uri.parse('${ApiConfig.baseUrl}/tasks?modifiedSince=$lastSync');
+    _log('Pull GET $uri');
     final response = await http.get(uri);
     if (response.statusCode != 200) return;
 
@@ -78,7 +83,9 @@ class SyncService {
       if (item is! Map) continue;
       final serverTask = _taskFromServer(item);
       if (serverTask == null) continue;
-      final local = serverTask.id != null ? await DatabaseService.instance.read(serverTask.id!) : null;
+      final local = serverTask.id != null
+          ? await DatabaseService.instance.read(serverTask.id!)
+          : null;
       if (local == null) {
         await DatabaseService.instance.create(serverTask.copyWith(syncStatus: 'synced'));
       } else {
@@ -93,9 +100,7 @@ class SyncService {
           // Local mais novo: reenvia para o servidor
           try {
             await _pushUpdate(local);
-            await DatabaseService.instance.update(
-              local.copyWith(syncStatus: 'synced'),
-            );
+            await DatabaseService.instance.update(local.copyWith(syncStatus: 'synced'));
           } catch (_) {
             // deixa local como está; fila/cuidados extras podem ser adicionados
           }
@@ -151,6 +156,7 @@ class SyncService {
 
   Future<Task?> _pushCreate(Task task) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}/tasks');
+    _log('Push CREATE $uri');
     final response = await http.post(
       uri,
       headers: {'Content-Type': 'application/json'},
@@ -172,6 +178,7 @@ class SyncService {
   Future<Task?> _pushUpdate(Task task) async {
     final id = task.id ?? '';
     final uri = Uri.parse('${ApiConfig.baseUrl}/tasks/$id');
+    _log('Push UPDATE $uri');
     final response = await http.put(
       uri,
       headers: {'Content-Type': 'application/json'},
@@ -223,6 +230,7 @@ class SyncService {
   Future<void> _pushDelete(Task task) async {
     final id = task.id ?? '';
     final uri = Uri.parse('${ApiConfig.baseUrl}/tasks/$id');
+    _log('Push DELETE $uri');
     final response = await http.delete(uri);
     if (response.statusCode >= 200 && response.statusCode < 300) {
       // ok
@@ -255,8 +263,11 @@ class SyncService {
   }
 
   Future<void> _markSynced(Task task) async {
-    await DatabaseService.instance.update(
-      task.copyWith(syncStatus: 'synced'),
-    );
+    await DatabaseService.instance.update(task.copyWith(syncStatus: 'synced'));
+  }
+
+  void _log(String message) {
+    // You can replace this with any logging mechanism you prefer
+    print('[SyncService] $message');
   }
 }
