@@ -30,6 +30,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
   bool _isOnline = true;
   StreamSubscription<bool>? _connectivitySubscription;
   StreamSubscription<bool>? _syncSubscription;
+  StreamSubscription<String>? _syncMessageSubscription;
 
   @override
   void initState() {
@@ -44,6 +45,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
       if (!mounted) return;
       _loadTasks();
     });
+    _syncMessageSubscription = SyncService.instance.onSyncMessage.listen(_handleSyncMessage);
     _loadTasks();
     _setupShakeDetection();
   }
@@ -53,6 +55,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
     SensorService.instance.stop();
     _connectivitySubscription?.cancel();
     _syncSubscription?.cancel();
+    _syncMessageSubscription?.cancel();
     super.dispose();
   }
 
@@ -336,6 +339,23 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
+  void _setFilter(String value) {
+    setState(() => _filter = value);
+    _loadTasks();
+  }
+
+  void _setCategory(String value) {
+    setState(() => _categoryFilter = value);
+    _loadTasks();
+  }
+
+  void _handleSyncMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filteredTasks = _filteredTasks;
@@ -403,7 +423,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
           // Filtro
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
-            onSelected: (value) => setState(() => _filter = value),
+            onSelected: (value) => _setFilter(value),
             itemBuilder: (context) => [
               const PopupMenuItem(
                 value: 'all',
@@ -458,7 +478,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                     ChoiceChip(
                       label: const Text('Todas'),
                       selected: _categoryFilter == 'all',
-                      onSelected: (_) => setState(() => _categoryFilter = 'all'),
+                      onSelected: (_) => _setCategory('all'),
                     ),
                     const SizedBox(width: 8),
                     ...categories.map(
@@ -468,7 +488,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                           label: Text(cat.name),
                           selected: _categoryFilter == cat.id,
                           selectedColor: cat.color.withValues(alpha: 0.2),
-                          onSelected: (_) => setState(() => _categoryFilter = cat.id),
+                          onSelected: (_) => _setCategory(cat.id),
                         ),
                       ),
                     ),
@@ -499,21 +519,21 @@ class _TaskListScreenState extends State<TaskListScreen> {
                     label: 'Total',
                     value: stats['total'].toString(),
                     selected: _filter == 'all',
-                    onTap: () => setState(() => _filter = 'all'),
+                    onTap: () => _setFilter('all'),
                   ),
                   _buildStatItem(
                     icon: Icons.pending_actions,
                     label: 'Pendentes',
                     value: stats['pending'].toString(),
                     selected: _filter == 'pending',
-                    onTap: () => setState(() => _filter = 'pending'),
+                    onTap: () => _setFilter('pending'),
                   ),
                   _buildStatItem(
                     icon: Icons.check_circle,
                     label: 'Concluídas',
                     value: stats['completed'].toString(),
                     selected: _filter == 'completed',
-                    onTap: () => setState(() => _filter = 'completed'),
+                    onTap: () => _setFilter('completed'),
                   ),
                 ],
               ),

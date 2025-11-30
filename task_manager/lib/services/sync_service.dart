@@ -19,8 +19,10 @@ class SyncService {
   bool _isSyncing = false;
   Stream<bool>? _connectivityStream;
   final StreamController<bool> _syncCompletionController = StreamController<bool>.broadcast();
+  final StreamController<String> _syncMessageController = StreamController<String>.broadcast();
 
   Stream<bool> get onSyncComplete => _syncCompletionController.stream;
+  Stream<String> get onSyncMessage => _syncMessageController.stream;
 
   Future<void> initialize() async {
     _log('SyncService init usando baseUrl=${ApiConfig.baseUrl}');
@@ -42,8 +44,9 @@ class SyncService {
       _log('Iniciando sync');
       await _pushPending();
       await _pullUpdates();
-    } catch (_) {
+    } catch (e) {
       success = false;
+      _syncMessageController.add('Erro de sync: $e');
       rethrow;
     } finally {
       _isSyncing = false;
@@ -72,52 +75,61 @@ class SyncService {
         }
         await DatabaseService.instance.markQueueItemStatus(item['id'] as int, 'done');
         await DatabaseService.instance.removeFromSyncQueue(item['id'] as int);
-      } catch (_) {
-        _log('Erro ao processar item $op');
+      } catch (e) {
+        _log('Erro ao processar item $op: $e');
+        _syncMessageController.add('Sync falhou ($op id=${task.id ?? 'novo'}): $e');
         await DatabaseService.instance.markQueueItemStatus(item['id'] as int, 'failed');
       }
     }
   }
 
   Future<void> _pullUpdates() async {
-    final lastSync = await _readLastSyncTimestamp();
-    final uri = Uri.parse('${ApiConfig.baseUrl}/tasks?modifiedSince=$lastSync');
-    _log('Pull GET $uri');
-    final response = await http.get(uri);
-    if (response.statusCode != 200) return;
+    try {
+      final lastSync = await _readLastSyncTimestamp();
+      final uri = Uri.parse('${ApiConfig.baseUrl}/tasks?modifiedSince=$lastSync');
+      _log('Pull GET $uri');
+      final response = await http.get(uri);
+      if (response.statusCode != 200) {
+        _syncMessageController.add('Pull falhou: status ${response.statusCode}');
+        return;
+      }
 
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final tasks = (body['tasks'] as List?) ?? [];
-    for (final item in tasks) {
-      if (item is! Map) continue;
-      final serverTask = _taskFromServer(item);
-      if (serverTask == null) continue;
-      final local = serverTask.id != null
-          ? await DatabaseService.instance.read(serverTask.id!)
-          : null;
-      if (local == null) {
-        await DatabaseService.instance.create(serverTask.copyWith(syncStatus: 'synced'));
-      } else {
-        // LWW: compara updatedAt/version
-        final serverTime = serverTask.updatedAt.millisecondsSinceEpoch;
-        final localTime = local.updatedAt.millisecondsSinceEpoch;
-        if (serverTime > localTime || serverTask.version > local.version) {
-          await DatabaseService.instance.update(
-            serverTask.copyWith(id: local.id, syncStatus: 'synced'),
-          );
-        } else if (localTime > serverTime || local.version > serverTask.version) {
-          // Local mais novo: reenvia para o servidor
-          try {
-            await _pushUpdate(local);
-            await DatabaseService.instance.update(local.copyWith(syncStatus: 'synced'));
-          } catch (_) {
-            // deixa local como está; fila/cuidados extras podem ser adicionados
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final tasks = (body['tasks'] as List?) ?? [];
+      for (final item in tasks) {
+        if (item is! Map) continue;
+        final serverTask = _taskFromServer(item);
+        if (serverTask == null) continue;
+        final local = serverTask.id != null
+            ? await DatabaseService.instance.read(serverTask.id!)
+            : null;
+        if (local == null) {
+          await DatabaseService.instance.create(serverTask.copyWith(syncStatus: 'synced'));
+        } else {
+          // LWW: compara updatedAt/version
+          final serverTime = serverTask.updatedAt.millisecondsSinceEpoch;
+          final localTime = local.updatedAt.millisecondsSinceEpoch;
+          if (serverTime > localTime || serverTask.version > local.version) {
+            await DatabaseService.instance.update(
+              serverTask.copyWith(id: local.id, syncStatus: 'synced'),
+            );
+          } else if (localTime > serverTime || local.version > serverTask.version) {
+            // Local mais novo: reenvia para o servidor
+            try {
+              await _pushUpdate(local);
+              await DatabaseService.instance.update(local.copyWith(syncStatus: 'synced'));
+            } catch (_) {
+              // deixa local como está; fila/cuidados extras podem ser adicionados
+            }
           }
         }
       }
-    }
 
-    await _writeLastSyncTimestamp(DateTime.now().millisecondsSinceEpoch);
+      await _writeLastSyncTimestamp(DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      _syncMessageController.add('Erro no pull: $e');
+      rethrow;
+    }
   }
 
   Task? _taskFromServer(Map data) {
