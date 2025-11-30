@@ -311,6 +311,31 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
+  Future<void> _manualSync() async {
+    if (!_isOnline) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Offline: não foi possível sincronizar agora')),
+        );
+      }
+      return;
+    }
+    try {
+      await SyncService.instance.sync();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sincronização iniciada')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao sincronizar: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final filteredTasks = _filteredTasks;
@@ -358,6 +383,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
             icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
             tooltip: isDark ? 'Tema claro' : 'Tema escuro',
             onPressed: widget.onToggleTheme,
+          ),
+          IconButton(
+            icon: const Icon(Icons.cloud_sync),
+            tooltip: 'Sincronizar agora',
+            onPressed: _manualSync,
           ),
           IconButton(icon: const Icon(Icons.refresh), tooltip: 'Recarregar', onPressed: _loadTasks),
           IconButton(

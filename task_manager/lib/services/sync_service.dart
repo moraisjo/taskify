@@ -223,6 +223,17 @@ class SyncService {
       }
       throw Exception('CONFLICT');
     }
+    if (response.statusCode == 404) {
+      // Registro inexistente no servidor: tenta recriar para convergência
+      try {
+        _log('UPDATE retornou 404; tentando CREATE para id=$id');
+        final created = await _pushCreate(task);
+        return created ?? task;
+      } catch (_) {
+        // Falha na criação, deixa erro propagar
+      }
+      throw Exception('NOT_FOUND');
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       try {
         final body = jsonDecode(response.body) as Map<String, dynamic>;

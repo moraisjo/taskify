@@ -200,7 +200,12 @@ class DatabaseService {
 
   Future<List<Map<String, dynamic>>> getPendingQueue() async {
     final db = await database;
-    return db.query('sync_queue', where: 'status = ?', whereArgs: ['pending'], orderBy: 'createdAt ASC');
+    return db.query(
+      'sync_queue',
+      where: 'status IN (?, ?)',
+      whereArgs: ['pending', 'failed'],
+      orderBy: 'createdAt ASC',
+    );
   }
 
   Future<int> markQueueItemStatus(int id, String status) async {
