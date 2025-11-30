@@ -144,8 +144,11 @@ class SyncService {
         return DateTime.now();
       }
 
+      final serverId = data['id']?.toString();
+
       return Task(
         id: (data['id'] is num) ? (data['id'] as num).toInt() : int.tryParse('${data['id']}'),
+        remoteId: serverId,
         title: (data['title'] as String?) ?? '',
         description: (data['description'] as String?) ?? '',
         priority: (data['priority'] as String?) ?? 'medium',
@@ -162,8 +165,9 @@ class SyncService {
   }
 
   Map<String, dynamic> _taskToPayload(Task task) {
+    final id = task.remoteId ?? (task.id?.toString() ?? '');
     return {
-      'id': task.id,
+      'id': id.isNotEmpty ? id : null,
       'title': task.title,
       'description': task.description,
       'priority': task.priority,
@@ -187,7 +191,11 @@ class SyncService {
       try {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         final serverTask = _taskFromServer(body['task'] as Map? ?? {});
-        return serverTask ?? task;
+        if (serverTask != null) {
+          // preserva id local e remoteId do servidor
+          return serverTask.copyWith(id: task.id ?? serverTask.id);
+        }
+        return task;
       } catch (_) {
         return task;
       }
@@ -197,8 +205,8 @@ class SyncService {
   }
 
   Future<Task?> _pushUpdate(Task task) async {
-    final id = task.id ?? '';
-    final uri = Uri.parse('${ApiConfig.baseUrl}/tasks/$id');
+    final serverId = task.remoteId ?? task.id?.toString() ?? '';
+    final uri = Uri.parse('${ApiConfig.baseUrl}/tasks/$serverId');
     _log('Push UPDATE $uri');
     final response = await http.put(
       uri,
@@ -222,13 +230,13 @@ class SyncService {
               body: jsonEncode(payload),
             );
             if (retry.statusCode >= 200 && retry.statusCode < 300) {
-              _syncMessageController.add('Conflito resolvido: local venceu (id=$id)');
+              _syncMessageController.add('Conflito resolvido: local venceu (id=$serverId)');
               return task.copyWith(version: serverTask.version + 1);
             }
           } else {
             // Servidor vence: atualizar local
             await _markSynced(serverTask);
-            _syncMessageController.add('Conflito resolvido: servidor venceu (id=$id)');
+            _syncMessageController.add('Conflito resolvido: servidor venceu (id=$serverId)');
             return serverTask;
           }
         }
@@ -240,9 +248,9 @@ class SyncService {
     if (response.statusCode == 404) {
       // Registro inexistente no servidor: tenta recriar para convergência
       try {
-        _log('UPDATE retornou 404; tentando CREATE para id=$id');
+        _log('UPDATE retornou 404; tentando CREATE para id=$serverId');
         final created = await _pushCreate(task);
-        _syncMessageController.add('Registro ausente no servidor, recriado (id=$id)');
+        _syncMessageController.add('Registro ausente no servidor, recriado (id=$serverId)');
         return created ?? task;
       } catch (_) {
         // Falha na criação, deixa erro propagar
@@ -263,7 +271,7 @@ class SyncService {
   }
 
   Future<void> _pushDelete(Task task) async {
-    final id = task.id ?? '';
+    final id = task.remoteId ?? task.id?.toString() ?? '';
     final uri = Uri.parse('${ApiConfig.baseUrl}/tasks/$id');
     _log('Push DELETE $uri');
     final response = await http.delete(uri);

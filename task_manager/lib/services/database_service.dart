@@ -28,7 +28,7 @@ class DatabaseService {
     final path = join(directory.path, fileName);
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
       onConfigure: (db) async {
@@ -43,6 +43,7 @@ class DatabaseService {
     await db.execute('''
       CREATE TABLE tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        remoteId TEXT,
         title TEXT NOT NULL,
         description TEXT NOT NULL,
         priority TEXT NOT NULL,
@@ -128,6 +129,11 @@ class DatabaseService {
         await db.execute("UPDATE tasks SET updatedAt = createdAt WHERE updatedAt IS NULL");
         await db.execute("UPDATE tasks SET version = 1 WHERE version IS NULL");
         await db.execute("UPDATE tasks SET syncStatus = 'synced' WHERE syncStatus IS NULL");
+      } catch (_) {}
+    }
+    if (oldVersion < 7) {
+      try {
+        await db.execute('ALTER TABLE tasks ADD COLUMN remoteId TEXT');
       } catch (_) {}
     }
   }
@@ -259,6 +265,7 @@ class DatabaseService {
         try {
           final task = Task.fromMap({
             'id': item['id'],
+            'remoteId': item['remoteId'],
             'title': item['title'],
             'description': item['description'] ?? '',
             'priority': item['priority'],

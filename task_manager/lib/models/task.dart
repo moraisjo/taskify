@@ -1,5 +1,6 @@
 class Task {
   final int? id;
+  final String? remoteId;
   final String title;
   final String description;
   final String priority;
@@ -18,6 +19,7 @@ class Task {
 
   Task({
     this.id,
+    this.remoteId,
     required this.title,
     required this.description,
     required this.priority,
@@ -43,6 +45,7 @@ class Task {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'remoteId': remoteId,
       'title': title,
       'description': description,
       'priority': priority,
@@ -64,6 +67,7 @@ class Task {
   factory Task.fromMap(Map<String, dynamic> map) {
     return Task(
       id: (map['id'] as num?)?.toInt(),
+      remoteId: map['remoteId'] as String?,
       title: (map['title'] as String?) ?? '',
       description: (map['description'] as String?) ?? '',
       priority: (map['priority'] as String?) ?? 'medium',
@@ -86,6 +90,7 @@ class Task {
 
   Task copyWith({
     int? id,
+    String? remoteId,
     String? title,
     String? description,
     String? priority,
@@ -104,6 +109,7 @@ class Task {
   }) {
     return Task(
       id: id ?? this.id,
+      remoteId: remoteId ?? this.remoteId,
       title: title ?? this.title,
       description: description ?? this.description,
       priority: priority ?? this.priority,
