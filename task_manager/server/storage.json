@@ -54,6 +54,17 @@
       "createdAt": "2025-11-30T19:16:54.307868",
       "updatedAt": 1764541051919,
       "version": 1
+    },
+    {
+      "id": 82,
+      "title": "1 esse tem q aparecer depois de dropar o server e o app",
+      "description": "update",
+      "completed": false,
+      "priority": "medium",
+      "userId": "user1",
+      "createdAt": "2025-11-30T19:20:06.989462",
+      "updatedAt": 1764541269208,
+      "version": 1
     }
   ]
 }
