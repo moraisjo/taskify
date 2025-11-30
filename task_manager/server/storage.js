@@ -1,9 +1,13 @@
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+const path = require('path');
 
 class ServerStorage {
   constructor() {
     this.tasks = new Map();
     this.lastModified = new Map(); // Rastreamento de modificações
+    this.dataFile = path.join(__dirname, 'storage.json');
+    this._loadFromDisk();
   }
 
   createTask(taskData) {
@@ -21,6 +25,7 @@ class ServerStorage {
 
     this.tasks.set(task.id, task);
     this.lastModified.set(task.id, task.updatedAt);
+    this._persist();
     return task;
   }
 
@@ -62,6 +67,7 @@ class ServerStorage {
 
     this.tasks.set(id, updatedTask);
     this.lastModified.set(id, updatedTask.updatedAt);
+    this._persist();
 
     return { success: true, task: updatedTask };
   }
@@ -80,6 +86,7 @@ class ServerStorage {
 
     this.tasks.delete(id);
     this.lastModified.delete(id);
+    this._persist();
     return { success: true };
   }
 
@@ -99,6 +106,45 @@ class ServerStorage {
       pending: tasks.length - completed,
       lastSync: this.getLastSyncTimestamp(userId),
     };
+  }
+
+  _persist() {
+    try {
+      const content = {
+        tasks: Array.from(this.tasks.values()),
+      };
+      fs.writeFileSync(this.dataFile, JSON.stringify(content, null, 2));
+    } catch (err) {
+      console.error('Erro ao persistir storage:', err);
+    }
+  }
+
+  _loadFromDisk() {
+    try {
+      if (!fs.existsSync(this.dataFile)) return;
+      const raw = fs.readFileSync(this.dataFile, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (parsed.tasks && Array.isArray(parsed.tasks)) {
+        for (const t of parsed.tasks) {
+          const task = {
+            ...t,
+            id: t.id,
+            title: t.title || '',
+            description: t.description || '',
+            completed: !!t.completed,
+            priority: t.priority || 'medium',
+            userId: t.userId || 'user1',
+            createdAt: t.createdAt || Date.now(),
+            updatedAt: t.updatedAt || Date.now(),
+            version: t.version || 1,
+          };
+          this.tasks.set(task.id, task);
+          this.lastModified.set(task.id, task.updatedAt);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao carregar storage:', err);
+    }
   }
 }
 

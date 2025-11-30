@@ -222,11 +222,13 @@ class SyncService {
               body: jsonEncode(payload),
             );
             if (retry.statusCode >= 200 && retry.statusCode < 300) {
+              _syncMessageController.add('Conflito resolvido: local venceu (id=$id)');
               return task.copyWith(version: serverTask.version + 1);
             }
           } else {
             // Servidor vence: atualizar local
             await _markSynced(serverTask);
+            _syncMessageController.add('Conflito resolvido: servidor venceu (id=$id)');
             return serverTask;
           }
         }
@@ -240,6 +242,7 @@ class SyncService {
       try {
         _log('UPDATE retornou 404; tentando CREATE para id=$id');
         final created = await _pushCreate(task);
+        _syncMessageController.add('Registro ausente no servidor, recriado (id=$id)');
         return created ?? task;
       } catch (_) {
         // Falha na criação, deixa erro propagar
