@@ -1,59 +1,56 @@
-# Gerenciador de Tarefas
+# Task Manager Offline-First
 
-Este projeto Flutter é um aplicativo local de gerenciamento de tarefas construído com SQLite para persistência de dados. Ele permite criar, atualizar, concluir e excluir tarefas em uma interface simples. O app demonstra conceitos fundamentais de Flutter, como widgets com estado, camada de serviços para acesso ao banco e separação entre modelo e visualização. Entre os recursos estão priorização de tarefas, filtro por status e contadores de tarefas.
+Aplicativo Flutter com persistência local (SQLite) e sincronização eventual com backend Node/Express. Suporta criação/edição/exclusão offline, fila de sync, resolução LWW e indicador de conectividade.
 
 ## Requisitos
 - Flutter SDK (>=3.9.0 <4.0.0)
-- Emulador ou dispositivo físico (Android/iOS/Web/Desktop)
+- Node.js 18+ e npm
+- Emulador/dispositivo Android ou desktop/web
 
-## Dependências Principais
-- Flutter framework
-- sqflite 2.3.0
-- path_provider 2.1.1
-- path 1.8.3
-- uuid 4.2.1
-- intl 0.19.0
+## Principais dependências
+### Flutter
+- sqflite, sqflite_common_ffi, path_provider, path
+- connectivity_plus, http, intl
+- flutter_staggered_animations
 
-## Estrutura de Pastas
+### Backend (npm)
+- express, cors, body-parser, uuid
+
+## Estrutura de pastas
 ```text
 task_manager/
 ├── lib/
 │   ├── main.dart
-│   ├── models/
-│   │   └── task.dart
-│   ├── screens/
-│   │   ├── task_form_screen.dart
-│   │   └── task_list_screen.dart
-│   ├── services/
-│   │   └── database_service.dart
-│   └── widgets/
-│       └── task_card.dart
-├── test/
-│   └── widget_test.dart
+│   ├── models/ (task.dart, category.dart)
+│   ├── services/ (database_service.dart, sync_service.dart, connectivity_service.dart, api_config.dart, camera_service.dart, location_service.dart, sensor_service.dart)
+│   ├── screens/ (task_list_screen.dart, task_form_screen.dart)
+│   └── widgets/ (task_card.dart, location_picker.dart)
+├── server/ (server.js, storage.js, package.json, package-lock.json)
+├── android/ios/macos/windows/linux/web/ (projetos Flutter nativos)
 ├── pubspec.yaml
 └── README.md
 ```
 
-## Executar Localmente
+## Como rodar
+1) Backend Node  
 ```bash
-flutter pub get
-flutter run
+cd server
+npm install
+npm start   # inicia em http://localhost:3000
 ```
 
-Limpeza opcional: `flutter clean` remove artefatos de build caso você troque de alvo ou enfrente problemas de cache.
+2) App Flutter  
+- Desktop/web: usa `http://localhost:3000/api` por padrão.  
+- Emulador Android: rodar com `--dart-define API_BASE_URL=http://10.0.2.2:3000/api`.  
+- Device físico: `--dart-define API_BASE_URL=http://<IP-da-sua-máquina>:3000/api`.
 
-## Relatório - Laboratório 2: Interface Profissional
+Comandos:
+```bash
+flutter pub get
+flutter run --dart-define API_BASE_URL=http://10.0.2.2:3000/api   # ajuste host conforme o alvo
+```
 
-### 1. Implementações Realizadas
-- Persistência local com SQLite (sqflite + sqflite_common_ffi) e serviços dedicados para CRUD de tarefas.
-- Tela principal com estatísticas, filtros de status e lista responsiva de tarefas com suporte a atualização pull-to-refresh.
-- Formulário de criação/edição com validação de campos, seleção de prioridade e controle de conclusão.
-- Feedbacks visuais via SnackBar e confirmação de exclusão com AlertDialog.
-- Modo tela claro/escuro com botão canto superior
-- Transição entre as estatísticas
-
-### Componentes Material Design 3 Utilizados
-- `Scaffold`, `AppBar` e `FloatingActionButton.extended`.
-- `Card`, `ListView`, `RefreshIndicator` e `InkWell` para exibir tarefas.
-- `TextFormField`, `DropdownButtonFormField`, `SwitchListTile`, `ElevatedButton` e `OutlinedButton` no formulário.
-- `Checkbox`, `PopupMenuButton`, `SnackBar` e `AlertDialog` para interação e feedback.
+## Notas de sincronização
+- Operações locais gravam no SQLite e entram na `sync_queue` com status pending/failed.
+- O SyncService envia a fila quando online, aplica LWW e trata 404 de update recriando a tarefa.
+- Indicadores na UI mostram pendente/sincronizado e estado online/offline.
